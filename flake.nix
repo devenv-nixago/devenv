@@ -23,7 +23,10 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, pre-commit-hooks, nix, ... }@inputs:
+  inputs.flake-parts = {
+    url = "github:Atry/flake-parts";
+  };
+  outputs = { self, nixpkgs, pre-commit-hooks, nix, flake-parts, ... }@inputs:
     let
       systems = [ "x86_64-linux" "i686-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
       forAllSystems = f: builtins.listToAttrs (map (name: { inherit name; value = f name; }) systems);
@@ -39,7 +42,11 @@
               ./src/modules/top-level.nix
               { devenv.warnOnNewVersion = false; }
             ];
-            specialArgs = { inherit pre-commit-hooks pkgs inputs; };
+            specialArgs = {
+              inherit pre-commit-hooks pkgs inputs;
+              inputsByOutPath = outPath:
+                flake-parts.lib.findInputsByOutPath outPath inputs;
+            };
           };
           sources = [
             { name = "${self}"; url = "https://github.com/cachix/devenv/blob/main"; }
@@ -129,6 +136,8 @@
               specialArgs = moduleInputs // {
                 inherit pkgs;
                 inputs = moduleInputs;
+                inputsByOutPath = outPath:
+                  flake-parts.lib.findInputsByOutPath outPath moduleInputs;
               };
               modules = [
                 (self.modules + /top-level.nix)
